@@ -1,20 +1,65 @@
-export default function handler(req, res) {
+export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Cache-Control", "no-store");
 
   if (req.method !== "GET") {
     return res.status(405).json({
+      ok: false,
       error: "Method not allowed"
     });
   }
 
-  return res.status(200).json({
-    ok: true,
-    ready: Boolean(
-      process.env.GHL_API_TOKEN &&
-      process.env.GHL_LOCATION_ID
-    ),
-    hasToken: Boolean(process.env.GHL_API_TOKEN),
-    hasLocationId: Boolean(process.env.GHL_LOCATION_ID)
+  const supabaseUrl = process.env.SUPABASE_URL;
+  const supabaseKey =
+    process.env.SUPABASE_SERVICE_ROLE_KEY ||
+    process.env.SUPABASE_SECRET_KEY;
+
+  const ghlReady = Boolean(
+    process.env.GHL_API_TOKEN &&
+    process.env.GHL_LOCATION_ID
+  );
+
+  const supabaseConfigured = Boolean(supabaseUrl && supabaseKey);
+
+  let supabaseConnected = false;
+  let supabaseError = null;
+
+  if (supabaseConfigured) {
+    try {
+      const response = await fetch(
+        `${supabaseUrl}/rest/v1/salons?select=id,name&limit=1`,
+        {
+          headers: {
+            apikey: supabaseKey
+          }
+        }
+      );
+
+      if (!response.ok) {
+        const body = await response.text();
+        throw new Error(`${response.status}: ${body}`);
+      }
+
+      supabaseConnected = true;
+    } catch (error) {
+      supabaseError = error.message;
+    }
+  }
+
+  return res.status(supabaseConnected ? 200 : 503).json({
+    ok: supabaseConnected,
+    app: "Prestige Salon POS",
+    version: "2.0",
+    supabase: {
+      configured: supabaseConfigured,
+      connected: supabaseConnected,
+      error: supabaseError
+    },
+    ghl: {
+      configured: ghlReady,
+      hasToken: Boolean(process.env.GHL_API_TOKEN),
+      hasLocationId: Boolean(process.env.GHL_LOCATION_ID)
+    },
+    time: new Date().toISOString()
   });
 }
