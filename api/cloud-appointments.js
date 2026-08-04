@@ -1,6 +1,12 @@
 export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
   res.setHeader("Cache-Control", "no-store");
+
+  if (req.method === "OPTIONS") {
+    return res.status(204).end();
+  }
 
   if (req.method !== "GET") {
     return res.status(405).json({
@@ -11,7 +17,14 @@ export default async function handler(req, res) {
 
   try {
     const supabaseUrl = process.env.SUPABASE_URL;
-    const supabaseKey = process.env.SUPABASE_SECRET_KEY;
+    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+    if (!supabaseUrl || !supabaseKey) {
+      return res.status(500).json({
+        ok: false,
+        error: "Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY"
+      });
+    }
 
     const start =
       req.query.start ||
@@ -28,25 +41,35 @@ export default async function handler(req, res) {
       `&order=start_time.asc`;
 
     const response = await fetch(`${supabaseUrl}/rest/v1/${query}`, {
+      method: "GET",
       headers: {
-        apikey: supabaseKey
+        apikey: supabaseKey,
+        Authorization: `Bearer ${supabaseKey}`,
+        Accept: "application/json",
+        "Content-Type": "application/json"
       }
     });
 
     const data = await response.json();
 
     if (!response.ok) {
-      throw new Error(JSON.stringify(data));
+      return res.status(response.status).json({
+        ok: false,
+        error: data
+      });
     }
 
     return res.status(200).json({
       ok: true,
       appointments: data
     });
-  } catch (error) {
+
+  } catch (err) {
+    console.error(err);
+
     return res.status(500).json({
       ok: false,
-      error: error.message
+      error: err.message
     });
   }
 }
