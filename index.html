@@ -1,60 +1,122 @@
 async function saveAppointment() {
-
-  let name = $('#aName').value.trim();
-  let phone = $('#aPhone').value.trim();
-  let bm = $('#aBirthMonth').value;
-  let bd = $('#aBirthDay').value;
-  let date = $('#aDate').value;
-  let time24 = $('#aTime').value;
+  const name = $('#aName').value.trim();
+  const phone = $('#aPhone').value.trim();
+  const bm = $('#aBirthMonth').value;
+  const bd = $('#aBirthDay').value;
+  const date = $('#aDate').value;
+  const time24 = $('#aTime').value;
+  const techId = $('#aTech').value;
+  const service = $('#aService').value;
+  const duration = Number($('#aDuration').value) || 60;
+  const buffer = Number($('#aBuffer').value) || 0;
+  const deposit = Number($('#aDeposit').value) || 0;
+  const status = $('#aStatus').value;
 
   if (!name || !phone || !bm || !bd || !date || !time24) {
-    return toast("Please complete all required fields");
+    return toast('Please complete all required fields');
   }
+
+  const startDate = new Date(`${date}T${time24}:00`);
+  const endDate = new Date(
+    startDate.getTime() + (duration + buffer) * 60000
+  );
+
+  const technician =
+    db.technicians.find(t => t.id === techId)?.name || 'Any Technician';
 
   const body = {
     customer_name: name,
-    phone: phone,
+    phone,
     birthday_month: bm,
     birthday_day: bd,
-    service_name: $('#aService').value,
-    technician: $('#aTech').value,
+    service_name: service,
+    technician,
     appointment_date: date,
     appointment_time: time24,
-    duration: Number($('#aDuration').value),
-    buffer: Number($('#aBuffer').value),
-    deposit: Number($('#aDeposit').value),
-    status: $('#aStatus').value
+    startTime: startDate.toISOString(),
+    endTime: endDate.toISOString(),
+    duration,
+    buffer,
+    deposit,
+    status
   };
 
   try {
-
-    const r = await fetch("/api/create-booking",{
-      method:"POST",
-      headers:{
-        "Content-Type":"application/json"
+    const response = await fetch('/api/create-booking', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
       },
-      body:JSON.stringify(body)
+      body: JSON.stringify(body)
     });
 
-    const data = await r.json();
+    const result = await response.json();
 
-    if(!r.ok){
-      console.log(data);
-      return toast("Booking failed");
+    if (!response.ok || !result.ok) {
+      console.error('Booking error:', result);
+      return toast(
+        typeof result.error === 'string'
+          ? result.error
+          : 'Booking failed'
+      );
     }
 
-    toast("Appointment Saved");
+    let customer = db.customers.find(
+      c => normalizePhone(c.phone) === normalizePhone(phone)
+    );
 
+    if (customer) {
+      customer.name = name;
+      customer.birthMonth = bm;
+      customer.birthDay = bd;
+    } else {
+      customer = {
+        id: uid('c'),
+        name,
+        phone,
+        email: '',
+        birthMonth: bm,
+        birthDay: bd,
+        visits: 0,
+        total: 0,
+        notes: '',
+        lastVisit: today(),
+        createdAt: today()
+      };
+
+      db.customers.unshift(customer);
+    }
+
+    const [hours, minutes] = time24.split(':').map(Number);
+    const suffix = hours >= 12 ? 'PM' : 'AM';
+    const displayHour = hours % 12 || 12;
+    const displayTime =
+      `${displayHour}:${String(minutes).padStart(2, '0')} ${suffix}`;
+
+    db.appointments.push({
+      id: result.appointment?.id || uid('a'),
+      cloudId: result.appointment?.id || null,
+      date,
+      time: displayTime,
+      duration,
+      buffer,
+      customerId: customer.id,
+      techId,
+      service,
+      status,
+      deposit,
+      source: 'POS Cloud'
+    });
+
+    save();
     closeModal();
 
-    loadAppointments();
+    appointmentRange = date === today() ? 'Today' : '7 Days';
+    go('appointments');
 
-  } catch(e){
-
-    console.error(e);
-
-    toast("Server Error");
-
+    toast('Appointment saved to cloud');
+  } catch (error) {
+    console.error('Server error:', error);
+    toast('Server error while saving appointment');
   }
-
 }
