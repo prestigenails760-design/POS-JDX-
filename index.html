@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>Salon Touchscreen Scheduler</title>
+<style>
+  :root{
+    --bg:#f6f1e8;
+    --panel:#fffdf8;
+    --ink:#1d1d1b;
+    --muted:#756f66;
+    --gold:#c8a24a;
+    --gold2:#e8d39a;
+    --green:#2e7d5b;
+    --red:#b94a48;
+    --blue:#2f6ea7;
+    --shadow:0 12px 30px rgba(42,34,20,.12);
+    --radius:22px;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  body{margin:0;font-family:Inter,Arial,sans-serif;background:var(--bg);color:var(--ink);min-height:100vh}
+  button,input,select{font:inherit}
+  .app{display:grid;grid-template-columns:240px 1fr;min-height:100vh}
+  .sidebar{background:#171717;color:white;padding:24px 18px;display:flex;flex-direction:column;gap:14px}
+  .brand{font-family:Georgia,serif;font-size:28px;line-height:1.05;margin-bottom:12px}
+  .brand small{display:block;font-family:Inter,Arial,sans-serif;color:#cfcfcf;font-size:12px;letter-spacing:1.7px;margin-top:8px}
+  .navbtn{border:0;border-radius:16px;padding:18px;text-align:left;background:#282828;color:white;font-weight:800;font-size:17px;cursor:pointer}
+  .navbtn.active,.navbtn:hover{background:var(--gold);color:#111}
+  .sidebar .bottom{margin-top:auto;color:#aaa;font-size:12px;line-height:1.5}
+  .main{padding:24px;overflow:auto}
+  .topbar{display:flex;justify-content:space-between;align-items:center;gap:16px;margin-bottom:20px}
+  .title h1{margin:0;font-family:Georgia,serif;font-size:36px}
+  .title p{margin:6px 0 0;color:var(--muted)}
+  .clock{background:var(--panel);padding:14px 18px;border-radius:16px;box-shadow:var(--shadow);font-weight:800}
+  .actions{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:22px}
+  .action{border:0;border-radius:20px;padding:22px 16px;background:var(--panel);box-shadow:var(--shadow);font-size:20px;font-weight:900;cursor:pointer;min-height:92px}
+  .action.primary{background:var(--gold);color:#111}
+  .action.walkin{background:#222;color:white}
+  .action.checkin{background:#dfeee7;color:#164a35}
+  .action.checkout{background:#e8edf4;color:#173e67}
+  .section{background:var(--panel);border-radius:var(--radius);box-shadow:var(--shadow);padding:20px;margin-bottom:20px}
+  .sectionhead{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
+  .sectionhead h2{margin:0;font-size:24px;font-family:Georgia,serif}
+  .badge{background:#efeadf;padding:8px 12px;border-radius:999px;font-size:12px;font-weight:800}
+  .techgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+  .tech{border:3px solid transparent;background:#fff;border-radius:20px;padding:18px;cursor:pointer;min-height:150px;text-align:left;box-shadow:0 4px 14px rgba(0,0,0,.06)}
+  .tech.selected{border-color:var(--gold);background:#fffaf0}
+  .avatar{width:54px;height:54px;border-radius:50%;display:grid;place-items:center;background:#1f1f1f;color:white;font-size:20px;font-weight:900;margin-bottom:12px}
+  .tech h3{margin:0 0 6px;font-size:20px}
+  .tech p{margin:0;color:var(--muted);font-size:14px}
+  .available{color:var(--green)!important;font-weight:900;margin-top:8px!important}
+  .board{display:grid;grid-template-columns:90px repeat(4,1fr);gap:8px;align-items:stretch}
+  .cell{background:#faf8f3;border-radius:14px;padding:10px;min-height:74px}
+  .time{display:grid;place-items:center;font-weight:900;color:var(--muted)}
+  .appt{background:#fff;border-left:6px solid var(--gold);box-shadow:0 3px 10px rgba(0,0,0,.05);cursor:pointer}
+  .appt strong{display:block;font-size:14px;margin-bottom:4px}
+  .appt small{color:var(--muted)}
+  .appt.arrived{border-left-color:var(--green)}
+  .appt.service{border-left-color:var(--blue)}
+  .appt.waiting{border-left-color:#d58b22}
+  .modal{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;align-items:center;justify-content:center;padding:18px;z-index:20}
+  .modal.show{display:flex}
+  .modalcard{background:var(--panel);width:min(900px,100%);max-height:92vh;overflow:auto;border-radius:28px;padding:24px;box-shadow:0 30px 70px rgba(0,0,0,.28)}
+  .modalhead{display:flex;justify-content:space-between;align-items:center;gap:16px;margin-bottom:18px}
+  .modalhead h2{margin:0;font-family:Georgia,serif;font-size:30px}
+  .close{border:0;background:#eee6d9;border-radius:50%;width:46px;height:46px;font-size:22px;font-weight:900;cursor:pointer}
+  .steps{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px}
+  .step{padding:8px 12px;border-radius:999px;background:#ece7df;color:#777;font-size:12px;font-weight:800}
+  .step.active{background:var(--gold);color:#111}
+  .grid2{display:grid;grid-template-columns:repeat(2,1fr);gap:14px}
+  .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+  .choice{border:2px solid #e7e0d5;border-radius:18px;padding:18px;background:#fff;cursor:pointer;text-align:left}
+  .choice.selected{border-color:var(--gold);background:#fff9ed}
+  .choice h3{margin:0 0 6px;font-size:19px}
+  .choice p{margin:0;color:var(--muted)}
+  .field{margin-bottom:14px}
+  .field label{display:block;font-size:13px;font-weight:900;margin-bottom:7px}
+  .field input,.field select{width:100%;border:2px solid #e8e0d4;border-radius:14px;padding:15px;background:white;font-size:17px}
+  .times{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+  .timebtn{border:2px solid #e8e0d4;border-radius:14px;background:#fff;padding:16px;font-weight:900;cursor:pointer}
+  .timebtn.selected{background:#171717;color:white;border-color:#171717}
+  .footerbtns{display:flex;justify-content:flex-end;gap:12px;margin-top:20px}
+  .btn{border:0;border-radius:15px;padding:15px 22px;font-weight:900;cursor:pointer}
+  .btn.secondary{background:#ece6dc;color:#222}
+  .btn.primary{background:var(--gold);color:#111}
+  .summary{background:#fff7e6;border:2px solid var(--gold2);border-radius:18px;padding:16px;line-height:1.7}
+  .toast{position:fixed;right:22px;bottom:22px;background:#171717;color:white;padding:16px 20px;border-radius:14px;box-shadow:var(--shadow);display:none;z-index:40;font-weight:800}
+  .toast.show{display:block}
+  @media(max-width:1000px){
+    .app{grid-template-columns:1fr}
+    .sidebar{position:sticky;top:0;z-index:10;flex-direction:row;overflow:auto;padding:10px}
+    .brand,.sidebar .bottom{display:none}
+    .navbtn{white-space:nowrap;padding:13px 15px;font-size:14px}
+    .actions,.techgrid{grid-template-columns:repeat(2,1fr)}
+    .board{grid-template-columns:75px repeat(4,220px);overflow:auto}
+  }
+  @media(max-width:650px){
+    .main{padding:14px}
+    .topbar{align-items:flex-start}.title h1{font-size:28px}.clock{font-size:13px}
+    .actions{grid-template-columns:1fr 1fr}.action{font-size:16px;min-height:78px;padding:14px}
+    .techgrid,.grid2,.grid3{grid-template-columns:1fr 1fr}
+    .times{grid-template-columns:1fr 1fr}
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand">JD Salon OS<small>TOUCHSCREEN SCHEDULER</small></div>
+    <button class="navbtn active">Today</button>
+    <button class="navbtn">Appointments</button>
+    <button class="navbtn">Walk-Ins</button>
+    <button class="navbtn">Checkout</button>
+    <button class="navbtn">Reports</button>
+    <div class="bottom">Ann calendar connected<br>Other technicians need their GHL links</div>
+  </aside>
+
+  <main class="main">
+    <div class="topbar">
+      <div class="title"><h1>Salon Floor</h1><p>Live appointments from Ann’s GoHighLevel calendar. Refreshes every 30 seconds.</p></div>
+      <div class="clock" id="clock"></div>
+    </div>
+
+    <div class="actions">
+      <button class="action primary" onclick="openBooking(false)">+ New Appointment</button>
+      <button class="action walkin" onclick="openBooking(true)">+ Add Walk-In</button>
+      <button class="action checkin" onclick="showToast('Tap an appointment card to check the guest in.')">✓ Check In</button>
+      <button class="action checkout" onclick="showToast('Checkout module will open from a completed appointment.')">$ Checkout</button>
+    </div>
+
+    <section class="section">
+      <div class="sectionhead"><h2>Choose a Technician</h2><span class="badge">4 working today</span></div>
+      <div class="techgrid" id="techGrid"></div>
+    </section>
+
+    <section class="section">
+      <div class="sectionhead"><h2>Today’s Schedule</h2><span class="badge" id="apptCount">Loading live schedule…</span></div>
+      <div class="board" id="board"></div>
+    </section>
+  </main>
+</div>
+
+<div class="modal" id="bookingModal">
+  <div class="modalcard">
+    <div class="modalhead"><h2 id="modalTitle">New Appointment</h2><button class="close" onclick="closeModal()">×</button></div>
+    <div class="steps">
+      <span class="step active" id="s1">1 Customer</span><span class="step" id="s2">2 Service</span><span class="step" id="s3">3 Technician</span><span class="step" id="s4">4 Time</span><span class="step" id="s5">5 Confirm</span>
+    </div>
+    <div id="stepContent"></div>
+    <div class="footerbtns"><button class="btn secondary" id="backBtn" onclick="backStep()">Back</button><button class="btn primary" id="nextBtn" onclick="nextStep()">Next</button></div>
+  </div>
+</div>
+
+<div class="modal" id="calendarModal">
+  <div class="modalcard" style="width:min(1100px,100%);height:94vh;padding:14px;overflow:hidden">
+    <div class="modalhead" style="margin-bottom:10px">
+      <h2 id="calendarTitle">GoHighLevel Calendar</h2>
+      <button class="close" onclick="closeCalendar()">×</button>
+    </div>
+    <iframe id="calendarFrame" title="GoHighLevel booking calendar" src="about:blank" style="width:100%;height:calc(94vh - 90px);border:0;border-radius:18px;background:white" allow="payment *"></iframe>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+<script>
+const technicians=[
+  {id:'ann',name:'Ann',next:'Open GHL calendar',initials:'AN',calendarUrl:'https://api.leadconnectorhq.com/widget/bookings/ann-a-personal-calendar-zuc-a9ymt'},
+  {id:'amy',name:'Amy',next:'Available 10:30',initials:'AM'},
+  {id:'lisa',name:'Lisa',next:'Available 11:00',initials:'LS'},
+  {id:'jennifer',name:'Jennifer',next:'Available 12:00',initials:'JD'}
+];
+const services=[
+  {id:'gelmani',name:'Gel Manicure',duration:45,price:55},
+  {id:'gelpedi',name:'Gel Pedicure',duration:60,price:72},
+  {id:'combo',name:'Gel Mani + Pedi',duration:90,price:99},
+  {id:'foot',name:'Full Foot Recovery',duration:80,price:99},
+  {id:'gelx',name:'Gel-X Full Set',duration:90,price:85},
+  {id:'classic',name:'Classic Manicure',duration:35,price:37}
+];
+const slots=['9:00 AM','9:30 AM','10:00 AM','10:30 AM','11:00 AM','11:30 AM','12:00 PM','1:00 PM','1:30 PM','2:00 PM','3:00 PM','4:00 PM'];
+let state={step:1,walkin:false,customer:{name:'',phone:''},service:null,tech:null,time:null};
+let appointments=[];
+let liveCalendarId=null;
+
+function renderTechs(){
+  techGrid.innerHTML=technicians.map(t=>`<button class="tech ${state.tech===t.id?'selected':''}" onclick="quickSelectTech('${t.id}')"><div class="avatar">${t.initials}</div><h3>${t.name}</h3><p>Tap to schedule</p><p class="available">${t.next}</p></button>`).join('');
+}
+function renderBoard(){
+  const times=['9:00','10:00','11:00','12:00','1:00','2:00','3:00','4:00'];
+  board.innerHTML='<div class="cell"></div>'+technicians.map(t=>`<div class="cell" style="font-weight:900;text-align:center">${t.name}</div>`).join('')+
+  times.map(time=>`<div class="cell time">${time}</div>`+technicians.map(t=>{
+    const a=appointments.find(x=>x.time===time&&x.tech===t.id);
+    return a?`<div class="cell appt ${a.status}" onclick="cycleStatus(this)"><strong>${a.name}</strong><small>${a.service}</small></div>`:`<div class="cell" onclick="openBooking(false,'${t.id}','${time}')"><small style="color:#aaa">+ Available</small></div>`;
+  }).join('')).join('');
+  apptCount.textContent=appointments.length+' appointments';
+}
+function cycleStatus(el){
+  if(el.classList.contains('arrived')){el.classList.remove('arrived');el.classList.add('service');showToast('Service started');}
+  else if(el.classList.contains('service')){el.classList.remove('service');showToast('Marked ready for checkout');}
+  else {el.classList.add('arrived');showToast('Guest checked in');}
+}
+function quickSelectTech(id){
+  const tech=technicians.find(t=>t.id===id);
+  if(tech&&tech.calendarUrl){openCalendar(tech);return;}
+  state.tech=id;renderTechs();openBooking(false,id);
+}
+function openCalendar(tech){
+  calendarTitle.textContent='Book with '+tech.name;
+  calendarFrame.src=tech.calendarUrl;
+  calendarModal.classList.add('show');
+}
+function closeCalendar(){
+  calendarModal.classList.remove('show');
+  calendarFrame.src='about:blank';
+  setTimeout(loadLiveAppointments,1500);
+}
+function openBooking(walkin=false,tech=null,time=null){
+  state={step:1,walkin,customer:{name:'',phone:''},service:null,tech:tech||null,time:time||null};
+  modalTitle.textContent=walkin?'Add Walk-In':'New Appointment';
+  bookingModal.classList.add('show');renderStep();
+}
+function closeModal(){bookingModal.classList.remove('show');}
+function renderStep(){
+  document.querySelectorAll('.step').forEach((el,i)=>el.classList.toggle('active',i+1===state.step));
+  backBtn.style.visibility=state.step===1?'hidden':'visible';
+  nextBtn.textContent=state.step===5?'Confirm Appointment':'Next';
+  let html='';
+  if(state.step===1){html=`<div class="grid2"><div class="field"><label>Customer name</label><input id="custName" placeholder="Enter full name" value="${state.customer.name}"></div><div class="field"><label>Phone number</label><input id="custPhone" placeholder="(555) 555-5555" value="${state.customer.phone}"></div></div>`;}
+  if(state.step===2){html=`<div class="grid3">${services.map(s=>`<button class="choice ${state.service===s.id?'selected':''}" onclick="selectService('${s.id}')"><h3>${s.name}</h3><p>${s.duration} min · $${s.price}</p></button>`).join('')}</div>`;}
+  if(state.step===3){html=`<div class="grid2">${technicians.map(t=>`<button class="choice ${state.tech===t.id?'selected':''}" onclick="selectTech('${t.id}')"><h3>${t.name}</h3><p>${t.next}</p></button>`).join('')}</div>`;}
+  if(state.step===4){html=state.walkin?`<div class="summary"><strong>Walk-in booking</strong><br>The guest will be placed into the current waiting queue. Choose an estimated start time below.</div><br>`:'';html+=`<div class="times">${slots.map(t=>`<button class="timebtn ${state.time===t?'selected':''}" onclick="selectTime('${t}')">${t}</button>`).join('')}</div>`;}
+  if(state.step===5){const s=services.find(x=>x.id===state.service),t=technicians.find(x=>x.id===state.tech);html=`<div class="summary"><strong>${state.walkin?'Walk-In Summary':'Appointment Summary'}</strong><br>Customer: ${state.customer.name||'Guest'}<br>Phone: ${state.customer.phone||'Not entered'}<br>Service: ${s?s.name:'Not selected'}<br>Technician: ${t?t.name:'Not selected'}<br>Time: ${state.time||'Not selected'}<br>Estimated total: ${s?'$'+s.price:'—'}</div>`;}
+  stepContent.innerHTML=html;
+}
+function selectService(id){state.service=id;renderStep();}
+function selectTech(id){state.tech=id;renderStep();}
+function selectTime(t){state.time=t;renderStep();}
+function nextStep(){
+  if(state.step===1){state.customer.name=(document.getElementById('custName')||{}).value||'';state.customer.phone=(document.getElementById('custPhone')||{}).value||'';if(!state.customer.name){showToast('Enter the customer name');return;}}
+  if(state.step===2&&!state.service){showToast('Choose a service');return;}
+  if(state.step===3&&!state.tech){showToast('Choose a technician');return;}
+  if(state.step===4&&!state.time){showToast('Choose a time');return;}
+  if(state.step<5){state.step++;renderStep();return;}
+  const time=state.time.replace(' AM','').replace(' PM','');
+  const s=services.find(x=>x.id===state.service);
+  appointments.push({time:time.includes(':')?time:time+':00',tech:state.tech,name:state.customer.name,service:s.name,status:state.walkin?'waiting':''});
+  renderBoard();closeModal();showToast('Appointment saved to prototype schedule');
+}
+function backStep(){if(state.step>1){state.step--;renderStep();}}
+function showToast(msg){toast.textContent=msg;toast.classList.add('show');setTimeout(()=>toast.classList.remove('show'),2200);}
+
+function normalizeEvents(data){
+  const raw=data.events||data.appointments||[];
+  return raw.map((event)=>{
+    const startValue=event.startTime||event.start||event.startDateTime;
+    const date=new Date(startValue);
+    const contactName=event.contactName||event.name||event.title||event.contact?.name||'Appointment';
+    return {
+      time: date.toLocaleTimeString([], {hour:'numeric',minute:'2-digit'}).replace(' AM','').replace(' PM',''),
+      tech:'ann',
+      name:contactName,
+      service:event.title||event.appointmentTitle||event.serviceName||'Appointment',
+      status:String(event.appointmentStatus||event.status||'').toLowerCase(),
+      sortTime:date.getTime()
+    };
+  }).filter((item)=>Number.isFinite(item.sortTime));
+}
+async function resolveAnnCalendar(){
+  if(liveCalendarId) return liveCalendarId;
+  const response=await fetch('/api/calendars');
+  const data=await response.json();
+  if(!response.ok) throw new Error(data.error||'Cannot load calendars');
+  const calendars=data.calendars||data.data||[];
+  const ann=calendars.find((c)=>/ann/i.test(c.name||c.title||''));
+  if(!ann) throw new Error('Ann calendar was not found. Add GHL_ANN_CALENDAR_ID in Vercel.');
+  liveCalendarId=ann.id;
+  return liveCalendarId;
+}
+async function loadLiveAppointments(){
+  try{
+    apptCount.textContent='Loading live schedule…';
+    const calendarId=await resolveAnnCalendar();
+    const start=new Date(); start.setHours(0,0,0,0);
+    const end=new Date(); end.setDate(end.getDate()+30); end.setHours(23,59,59,999);
+    const response=await fetch(`/api/appointments?calendarId=${encodeURIComponent(calendarId)}&startTime=${start.getTime()}&endTime=${end.getTime()}`);
+    const data=await response.json();
+    if(!response.ok) throw new Error(data.error||'Cannot load appointments');
+    appointments=normalizeEvents(data).sort((a,b)=>a.sortTime-b.sortTime);
+    renderBoard();
+    apptCount.textContent=appointments.length+' live appointments (30 days)';
+  }catch(error){
+    console.error(error);
+    apptCount.textContent='Connection needed';
+    showToast(error.message);
+    renderBoard();
+  }
+}
+
+function updateClock(){const d=new Date();clock.textContent=d.toLocaleString([], {weekday:'short',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'});}setInterval(updateClock,30000);updateClock();
+renderTechs();renderBoard();loadLiveAppointments();setInterval(loadLiveAppointments,30000);
+</script>
+</body>
+</html>
